@@ -50,8 +50,14 @@
 			 ))
 	     :status-code
 	     '((400 . (lambda (&rest _) (message "Got 400.")))
-	       (418 . (lambda (&rest _) (message "Got 418."))))
+	       (418 . (lambda (&rest _) (message "Got 418.")))
+	       (404 . (lambda (&rest _) (message "Got 404."))))
 	     :complete
+	     (message "Done.")
+	     :error
+	     (function* (lambda (&key error-thrown &allow-other-keys&rest _)
+			  (message "Error: %S" error-thrown)
+			  (kill-buffer "*mlb*")))
 	     )
     )
   )
@@ -71,5 +77,17 @@
   (mlb/download-file year month day)
   )
 
+(defun mlb/today ()
+  "Get the scores for today's games."
+  (interactive)
+  (let ((y (format-time-string "%Y"))
+	(m (format-time-string "%m"))
+	(d (format-time-string "%d")))
+    (message "Getting games for %s/%s/%s" y m d)
+    (mlb/get-scores y m d)
+    )
+  )
+
+(provide 'mlb-scores)
 ;;; mlb-scores.el ends here
  
