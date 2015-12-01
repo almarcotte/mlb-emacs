@@ -7,9 +7,8 @@
 
 (defun mlb/download-file (year month day)
   "Download the grid json file for the given YEAR, MONTH and DAY."
-  (interactive)
-  (let ((file-url (format "http://gd2.mlb.com/components/game/mlb/%s/grid.json" (mlb/format-date year month day)))
-	 (file-tmp (concat temporary-file-directory (format "mlb-%04d-%02d-%02d.json" year month day))))
+  (require 'request)
+  (let ((file-url (format "http://gd2.mlb.com/components/game/mlb/%s/grid.json" (mlb/format-date year month day))))
     (request file-url
 	     :parser (lambda ()
 		       (let ((json-object-type 'alist))
@@ -17,13 +16,37 @@
 	     :success (function*
 		       (lambda (&key data &allow-other-keys)
 			 (let* (
-				(game (elt (assoc-default 'data data) 0))
-				(a (assoc-default 'game game))
-				(b (assoc-default 'id a))
+				(games (elt (assoc-default 'data data) 0))
+				(game (assoc-default 'game games))
+				(home-teams (cl-map 'list
+					       (lambda (alist) (cdr (assoc 'home_team_name alist)))
+					       game))
+				(away-teams (cl-map 'list
+						    (lambda (alist) (cdr (assoc 'away_team_name alist)))
+						    game))
+				(home-score (cl-map 'list
+						    (lambda (alist) (cdr (assoc 'home_score alist)))
+						    game))
+				(away-score (cl-map 'list
+						    (lambda (alist) (cdr (assoc 'away_score alist)))
+						    game))
+				(status (cl-map 'list
+						    (lambda (alist) (cdr (assoc 'status alist)))
+						    game))
+				(inning (cl-map 'list
+						    (lambda (alist) (cdr (assoc 'inning alist)))
+						    game))
 				)
-			   (message "%s" b)
+			   (switch-to-buffer "*mlb*")
+			   (erase-buffer)
+			   (let* ((home (cl-mapcar 'list home-teams home-score))
+				 (away (cl-mapcar 'list away-teams away-score))
+				 (innings (cl-mapcar 'list inning status))
+				 (matchups (cl-mapcar 'list home away))
+				 (games (cl-mapcar 'list matchups innings)))
+			     (dolist (el games)
+			       (insert (format "%S\n" el))))
 			   )
-			 
 			 ))
 	     :status-code
 	     '((400 . (lambda (&rest _) (message "Got 400.")))
@@ -33,15 +56,20 @@
     )
   )
 
-
 (defun mlb/format-date (year month day)
   "Formats the given YEAR, MONTH and DAY as a path on mlb.com."
-  (let* ((a (format "year_%04d/month_%02d/day_%02d" year month day)))
+  (let* ((a (format "year_%s/month_%s/day_%s" year month day)))
     a)
   )
 
-
-(mlb/download-file 2015 06 10)
+(defun mlb/get-scores (year month day)
+  "Get the YEAR, MONTH and DAY from the user and fetches the scores for that date."
+  (interactive (list
+		(read-string "Year:")
+		(read-string "Month:")
+		(read-string "Day:")))
+  (mlb/download-file year month day)
+  )
 
 ;;; mlb-scores.el ends here
  
